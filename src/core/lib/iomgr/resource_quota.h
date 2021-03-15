@@ -83,6 +83,7 @@ double grpc_resource_quota_get_memory_pressure(
     grpc_resource_quota* resource_quota);
 
 size_t grpc_resource_quota_peek_size(grpc_resource_quota* resource_quota);
+size_t grpc_resource_quota_peek_used(grpc_resource_quota* resource_quota);
 
 typedef struct grpc_resource_user grpc_resource_user;
 

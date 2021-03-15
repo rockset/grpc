@@ -733,6 +733,10 @@ size_t grpc_resource_quota_peek_size(grpc_resource_quota* resource_quota) {
       gpr_atm_no_barrier_load(&resource_quota->last_size));
 }
 
+size_t grpc_resource_quota_peek_used(grpc_resource_quota* resource_quota) {
+  return static_cast<size_t>(gpr_atm_no_barrier_load(&resource_quota->used));
+}
+
 /*******************************************************************************
  * grpc_resource_user channel args api
  */
