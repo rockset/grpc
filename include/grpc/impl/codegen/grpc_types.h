@@ -681,6 +681,12 @@ typedef struct grpc_op {
           exceeded, network failure, etc.), 0 otherwise (RPC processing ran to
           completion and was able to provide any status from the server) */
       int* cancelled;
+      grpc_status_code* status;
+      grpc_slice* status_details;
+      /** If this is not nullptr, it will be populated with the full fidelity
+       * error string for debugging purposes. The application is responsible
+       * for freeing the data by using gpr_free(). */
+      const char** error_string;
     } recv_close_on_server;
   } data;
 } grpc_op;

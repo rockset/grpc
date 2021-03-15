@@ -195,6 +195,9 @@ class ServerContextBase {
   /// the AsyncNotifyWhenDone tag has been delivered. Thread-safe.
   bool IsCancelled() const;
 
+  /// Thread-safety requirements same as IsCancelled
+  grpc::Status GetServerStatus() const;
+
   /// Cancel the Call from the server. This is a best-effort API and
   /// depending on when it is called, the RPC may still appear successful to
   /// the client. For example, if TryCancel() is called on a separate thread, it
@@ -558,6 +561,7 @@ class ServerContext : public ServerContextBase {
   using ServerContextBase::compression_level_set;
   using ServerContextBase::deadline;
   using ServerContextBase::IsCancelled;
+  using ServerContextBase::GetServerStatus;
   using ServerContextBase::peer;
   using ServerContextBase::raw_deadline;
   using ServerContextBase::set_compression_algorithm;
@@ -601,6 +605,7 @@ class CallbackServerContext : public ServerContextBase {
   using ServerContextBase::context_allocator;
   using ServerContextBase::deadline;
   using ServerContextBase::IsCancelled;
+  using ServerContextBase::GetServerStatus;
   using ServerContextBase::peer;
   using ServerContextBase::raw_deadline;
   using ServerContextBase::set_compression_algorithm;

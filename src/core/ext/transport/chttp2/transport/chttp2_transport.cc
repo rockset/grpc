@@ -1164,10 +1164,10 @@ static grpc_closure* add_closure_barrier(grpc_closure* closure) {
   return closure;
 }
 
-static void null_then_sched_closure(grpc_closure** closure) {
+static void null_then_sched_closure(grpc_closure** closure, grpc_error* error) {
   grpc_closure* c = *closure;
   *closure = nullptr;
-  grpc_core::ExecCtx::Run(DEBUG_LOCATION, c, GRPC_ERROR_NONE);
+  grpc_core::ExecCtx::Run(DEBUG_LOCATION, c, GRPC_ERROR_REF(error));
 }
 
 void grpc_chttp2_complete_closure_step(grpc_chttp2_transport* t,
@@ -1825,7 +1825,8 @@ void grpc_chttp2_maybe_complete_recv_initial_metadata(
     }
     grpc_chttp2_incoming_metadata_buffer_publish(&s->metadata_buffer[0],
                                                  s->recv_initial_metadata);
-    null_then_sched_closure(&s->recv_initial_metadata_ready);
+    null_then_sched_closure(&s->recv_initial_metadata_ready,
+            s->read_closed_error);
   }
 }
 
@@ -1905,10 +1906,10 @@ void grpc_chttp2_maybe_complete_recv_message(grpc_chttp2_transport* /*t*/,
     s->unprocessed_incoming_frames_buffer_cached_length =
         s->unprocessed_incoming_frames_buffer.length;
     if (error == GRPC_ERROR_NONE && *s->recv_message != nullptr) {
-      null_then_sched_closure(&s->recv_message_ready);
+      null_then_sched_closure(&s->recv_message_ready, GRPC_ERROR_NONE);
     } else if (s->published_metadata[1] != GRPC_METADATA_NOT_PUBLISHED) {
       *s->recv_message = nullptr;
-      null_then_sched_closure(&s->recv_message_ready);
+      null_then_sched_closure(&s->recv_message_ready, GRPC_ERROR_NONE);
     }
     GRPC_ERROR_UNREF(error);
   }
@@ -1975,7 +1976,8 @@ void grpc_chttp2_maybe_complete_recv_trailing_metadata(grpc_chttp2_transport* t,
       s->collecting_stats = nullptr;
       grpc_chttp2_incoming_metadata_buffer_publish(&s->metadata_buffer[1],
                                                    s->recv_trailing_metadata);
-      null_then_sched_closure(&s->recv_trailing_metadata_finished);
+      null_then_sched_closure(&s->recv_trailing_metadata_finished,
+                              s->read_closed_error);
     }
   }
 }

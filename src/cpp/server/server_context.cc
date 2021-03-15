@@ -66,6 +66,7 @@ class ServerContextBase::CompletionOp final
     if (call_.server_rpc_info()) {
       call_.server_rpc_info()->Unref();
     }
+    gpr_free(error_string_);
   }
 
   void FillOps(internal::Call* call) override;
@@ -94,6 +95,16 @@ class ServerContextBase::CompletionOp final
     return CheckCancelledNoPluck();
   }
   bool CheckCancelledAsync() { return CheckCancelledNoPluck(); }
+
+  grpc::Status GetServerStatus() {
+    grpc_core::MutexLock lock(&mu_);
+    GPR_ASSERT(finalized_);
+    return grpc::Status(static_cast<StatusCode>(status_code_), error_string_,
+                        GRPC_SLICE_IS_EMPTY(status_details_)
+                            ? std::string()
+                            : std::string(GRPC_SLICE_START_PTR(status_details_),
+                                          GRPC_SLICE_END_PTR(status_details_)));
+  }
 
   void set_tag(void* tag) {
     has_tag_ = true;
@@ -146,6 +157,9 @@ class ServerContextBase::CompletionOp final
   grpc_core::Mutex mu_;
   bool finalized_;
   int cancelled_;  // This is an int (not bool) because it is passed to core
+  grpc_status_code status_code_;
+  grpc_slice status_details_;
+  char* error_string_;
   bool done_intercepting_;
   internal::InterceptorBatchMethodsImpl interceptor_methods_;
 };
@@ -162,6 +176,9 @@ void ServerContextBase::CompletionOp::FillOps(internal::Call* call) {
   grpc_op ops;
   ops.op = GRPC_OP_RECV_CLOSE_ON_SERVER;
   ops.data.recv_close_on_server.cancelled = &cancelled_;
+  ops.data.recv_close_on_server.status = &status_code_;
+  ops.data.recv_close_on_server.status_details = &status_details_;
+  ops.data.recv_close_on_server.error_string = (const char**)(&error_string_);
   ops.flags = 0;
   ops.reserved = nullptr;
   interceptor_methods_.SetCall(&call_);
@@ -330,6 +347,22 @@ bool ServerContextBase::IsCancelled() const {
   } else {
     // when using sync API, the result is always valid
     return completion_op_ && completion_op_->CheckCancelled(cq_);
+  }
+}
+
+grpc::Status ServerContextBase::GetServerStatus() const {
+  if (completion_tag_) {
+    // When using callback API, this result is always valid.
+    return completion_op_->GetServerStatus();
+  } else if (has_notify_when_done_tag_) {
+    // When using async API, the result is only valid
+    // if the tag has already been delivered at the completion queue
+    return completion_op_ ? completion_op_->GetServerStatus()
+                          : grpc::Status::OK;
+  } else {
+    // when using sync API, the result is always valid
+    return completion_op_ ? completion_op_->GetServerStatus()
+                          : grpc::Status::OK;
   }
 }
 

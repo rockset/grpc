@@ -246,6 +246,9 @@ struct grpc_call {
       int* cancelled;
       // backpointer to owning server if this is a server side call.
       grpc_core::Server* core_server;
+      grpc_status_code* status;
+      grpc_slice* status_details;
+      const char** error_string;
     } server;
   } final_op;
   gpr_atm status_error = 0;
@@ -381,6 +384,9 @@ grpc_error* grpc_call_create(const grpc_call_create_args* args,
     GRPC_STATS_INC_SERVER_CALLS_CREATED();
     call->final_op.server.cancelled = nullptr;
     call->final_op.server.core_server = args->server;
+    call->final_op.server.status_details = nullptr;
+    call->final_op.server.status = nullptr;
+    call->final_op.server.error_string = nullptr;
     GPR_ASSERT(args->add_initial_metadata_count == 0);
     call->send_extra_metadata_count = 0;
   }
@@ -764,6 +770,10 @@ static void set_final_status(grpc_call* call, grpc_error* error) {
       }
     }
   } else {
+    grpc_error_get_status(
+        error, GRPC_MILLIS_INF_FUTURE, call->final_op.server.status,
+        call->final_op.server.status_details, nullptr,
+        call->final_op.server.error_string);
     *call->final_op.server.cancelled =
         error != GRPC_ERROR_NONE || !call->sent_server_trailing_metadata;
     grpc_core::channelz::ServerNode* channelz_node =
@@ -1904,6 +1914,11 @@ static grpc_call_error call_start_batch(grpc_call* call, const grpc_op* ops,
         call->requested_final_op = true;
         call->final_op.server.cancelled =
             op->data.recv_close_on_server.cancelled;
+        call->final_op.server.status = op->data.recv_close_on_server.status;
+        call->final_op.server.status_details =
+            op->data.recv_close_on_server.status_details;
+        call->final_op.server.error_string =
+            op->data.recv_close_on_server.error_string;
         stream_op->recv_trailing_metadata = true;
         stream_op_payload->recv_trailing_metadata.recv_trailing_metadata =
             &call->metadata_batch[1 /* is_receiving */][1 /* is_trailing */];
