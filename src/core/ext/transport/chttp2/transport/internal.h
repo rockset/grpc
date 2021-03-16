@@ -556,6 +556,7 @@ struct grpc_chttp2_stream {
   bool* trailing_metadata_available = nullptr;
   grpc_core::OrphanablePtr<grpc_core::ByteStream>* recv_message;
   grpc_closure* recv_message_ready = nullptr;
+  bool* recv_message_oom_killed = nullptr;
   grpc_metadata_batch* recv_trailing_metadata;
   grpc_closure* recv_trailing_metadata_finished = nullptr;
 

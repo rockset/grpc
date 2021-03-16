@@ -229,6 +229,8 @@ class ServerContextBase {
     return *client_metadata_.map();
   }
 
+  bool IsReadOOMKilled() const;
+
   /// Return the compression algorithm to be used by the server call.
   grpc_compression_level compression_level() const {
     return compression_level_;
@@ -558,6 +560,7 @@ class ServerContext : public ServerContextBase {
   using ServerContextBase::compression_level_set;
   using ServerContextBase::deadline;
   using ServerContextBase::IsCancelled;
+  using ServerContextBase::IsReadOOMKilled;
   using ServerContextBase::peer;
   using ServerContextBase::raw_deadline;
   using ServerContextBase::set_compression_algorithm;
@@ -601,6 +604,7 @@ class CallbackServerContext : public ServerContextBase {
   using ServerContextBase::context_allocator;
   using ServerContextBase::deadline;
   using ServerContextBase::IsCancelled;
+  using ServerContextBase::IsReadOOMKilled;
   using ServerContextBase::peer;
   using ServerContextBase::raw_deadline;
   using ServerContextBase::set_compression_algorithm;
