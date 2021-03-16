@@ -1543,6 +1543,8 @@ static void perform_stream_op_locked(void* stream_op,
     GPR_ASSERT(!s->pending_byte_stream);
     s->recv_message_ready = op_payload->recv_message.recv_message_ready;
     s->recv_message = op_payload->recv_message.recv_message;
+    s->recv_message_oom_killed =
+        op_payload->recv_message.recv_message_oom_killed;
     if (s->id != 0) {
       if (!s->read_closed) {
         before = s->frame_storage.length +
@@ -3185,6 +3187,10 @@ static void destructive_reclaimer_locked(void* arg, grpc_error* error) {
     if (GRPC_TRACE_FLAG_ENABLED(grpc_resource_quota_trace)) {
       gpr_log(GPR_INFO, "HTTP2: %s - abandon stream id %d",
               t->peer_string.c_str(), s->id);
+    }
+    if (s->recv_message_ready != nullptr &&
+        s->recv_message_oom_killed != nullptr) {
+      *s->recv_message_oom_killed = true;
     }
     grpc_chttp2_cancel_stream(
         t, s,

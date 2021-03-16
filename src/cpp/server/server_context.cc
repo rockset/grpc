@@ -333,6 +333,10 @@ bool ServerContextBase::IsCancelled() const {
   }
 }
 
+bool ServerContextBase::IsReadOOMKilled() const {
+  return grpc_call_recv_message_oom_killed(call_.call);
+}
+
 void ServerContextBase::set_compression_algorithm(
     grpc_compression_algorithm algorithm) {
   compression_algorithm_ = algorithm;
