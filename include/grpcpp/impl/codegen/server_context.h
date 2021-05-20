@@ -231,6 +231,8 @@ class ServerContextBase {
 
   bool IsReadOOMKilled() const;
 
+  const char* read_closed_error() const;
+
   /// Return the compression algorithm to be used by the server call.
   grpc_compression_level compression_level() const {
     return compression_level_;
@@ -561,6 +563,7 @@ class ServerContext : public ServerContextBase {
   using ServerContextBase::deadline;
   using ServerContextBase::IsCancelled;
   using ServerContextBase::IsReadOOMKilled;
+  using ServerContextBase::read_closed_error;
   using ServerContextBase::peer;
   using ServerContextBase::raw_deadline;
   using ServerContextBase::set_compression_algorithm;
@@ -605,6 +608,7 @@ class CallbackServerContext : public ServerContextBase {
   using ServerContextBase::deadline;
   using ServerContextBase::IsCancelled;
   using ServerContextBase::IsReadOOMKilled;
+  using ServerContextBase::read_closed_error;
   using ServerContextBase::peer;
   using ServerContextBase::raw_deadline;
   using ServerContextBase::set_compression_algorithm;

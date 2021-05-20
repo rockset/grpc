@@ -1106,7 +1106,8 @@ static void maybe_start_some_streams(grpc_chttp2_transport* t) {
           t, s,
           grpc_error_set_int(
               GRPC_ERROR_CREATE_FROM_STATIC_STRING("GOAWAY received"),
-              GRPC_ERROR_INT_GRPC_STATUS, GRPC_STATUS_UNAVAILABLE));
+              GRPC_ERROR_INT_GRPC_STATUS, GRPC_STATUS_UNAVAILABLE),
+	  GRPC_ERROR_CREATE_FROM_STATIC_STRING("GRPC_STATUS_UNAVAILABLE"));
     }
     return;
   }
@@ -1146,7 +1147,8 @@ static void maybe_start_some_streams(grpc_chttp2_transport* t) {
           t, s,
           grpc_error_set_int(
               GRPC_ERROR_CREATE_FROM_STATIC_STRING("Stream IDs exhausted"),
-              GRPC_ERROR_INT_GRPC_STATUS, GRPC_STATUS_UNAVAILABLE));
+              GRPC_ERROR_INT_GRPC_STATUS, GRPC_STATUS_UNAVAILABLE),
+	  GRPC_ERROR_CREATE_FROM_STATIC_STRING("GRPC_STATUS_UNAVAILABLE2"));
     }
   }
 }
@@ -1284,7 +1286,8 @@ static void continue_fetching_send_locked(grpc_chttp2_transport* t,
       grpc_error* error = s->fetching_send_message->Pull(&s->fetching_slice);
       if (error != GRPC_ERROR_NONE) {
         s->fetching_send_message.reset();
-        grpc_chttp2_cancel_stream(t, s, error);
+        grpc_chttp2_cancel_stream(t, s, error,
+	  GRPC_ERROR_CREATE_FROM_STATIC_STRING("continue_fetching_send_locked"));
       } else {
         add_fetched_slice_locked(t, s);
       }
@@ -1311,7 +1314,8 @@ static void complete_fetch_locked(void* gs, grpc_error* error) {
   }
   if (error != GRPC_ERROR_NONE) {
     s->fetching_send_message.reset();
-    grpc_chttp2_cancel_stream(t, s, error);
+    grpc_chttp2_cancel_stream(t, s, error,
+	  GRPC_ERROR_CREATE_FROM_STATIC_STRING("complete_fetch_locked"));
   }
 }
 
@@ -1367,7 +1371,8 @@ static void perform_stream_op_locked(void* stream_op,
 
   if (op->cancel_stream) {
     GRPC_STATS_INC_HTTP2_OP_CANCEL();
-    grpc_chttp2_cancel_stream(t, s, op_payload->cancel_stream.cancel_error);
+    grpc_chttp2_cancel_stream(t, s, op_payload->cancel_stream.cancel_error,
+	  GRPC_ERROR_CREATE_FROM_STATIC_STRING("cancel_stream"));
   }
 
   if (op->send_initial_metadata) {
@@ -1415,7 +1420,8 @@ static void perform_stream_op_locked(void* stream_op,
               grpc_error_set_int(
                   GRPC_ERROR_CREATE_REFERENCING_FROM_STATIC_STRING(
                       "Transport closed", &t->closed_with_error, 1),
-                  GRPC_ERROR_INT_GRPC_STATUS, GRPC_STATUS_UNAVAILABLE));
+                  GRPC_ERROR_INT_GRPC_STATUS, GRPC_STATUS_UNAVAILABLE),
+	  GRPC_ERROR_CREATE_FROM_STATIC_STRING("closed_with_error"));
         }
       } else {
         GPR_ASSERT(s->id != 0);
@@ -1545,6 +1551,8 @@ static void perform_stream_op_locked(void* stream_op,
     s->recv_message = op_payload->recv_message.recv_message;
     s->recv_message_oom_killed =
         op_payload->recv_message.recv_message_oom_killed;
+    s->recv_message_read_closed_error =
+        op_payload->recv_message.read_closed_error;
     if (s->id != 0) {
       if (!s->read_closed) {
         before = s->frame_storage.length +
@@ -2026,7 +2034,11 @@ static void remove_stream(grpc_chttp2_transport* t, uint32_t id,
 }
 
 void grpc_chttp2_cancel_stream(grpc_chttp2_transport* t, grpc_chttp2_stream* s,
-                               grpc_error* due_to_error) {
+                               grpc_error* due_to_error, grpc_error* read_closed_error) {
+  if (read_closed_error) {
+    *s->recv_message_read_closed_error = read_closed_error;
+  }
+
   if (!t->is_client && !s->sent_trailing_metadata &&
       grpc_error_has_clear_grpc_status(due_to_error)) {
     close_from_api(t, s, due_to_error);
@@ -2370,7 +2382,8 @@ struct cancel_stream_cb_args {
 static void cancel_stream_cb(void* user_data, uint32_t /*key*/, void* stream) {
   cancel_stream_cb_args* args = static_cast<cancel_stream_cb_args*>(user_data);
   grpc_chttp2_stream* s = static_cast<grpc_chttp2_stream*>(stream);
-  grpc_chttp2_cancel_stream(args->t, s, GRPC_ERROR_REF(args->error));
+  grpc_chttp2_cancel_stream(args->t, s, GRPC_ERROR_REF(args->error),
+	  GRPC_ERROR_CREATE_FROM_STATIC_STRING("cancel_stream_cb"));
 }
 
 static void end_all_the_calls(grpc_chttp2_transport* t, grpc_error* error) {
@@ -2904,7 +2917,7 @@ static void reset_byte_stream(void* arg, grpc_error* error) {
     s->on_next = nullptr;
     GRPC_ERROR_UNREF(s->byte_stream_error);
     s->byte_stream_error = GRPC_ERROR_NONE;
-    grpc_chttp2_cancel_stream(s->t, s, GRPC_ERROR_REF(error));
+    grpc_chttp2_cancel_stream(s->t, s, GRPC_ERROR_REF(error), GRPC_ERROR_CREATE_FROM_STATIC_STRING("reset_byte_stream"));
     s->byte_stream_error = GRPC_ERROR_REF(error);
   }
 }
@@ -3065,7 +3078,7 @@ void Chttp2IncomingByteStream::PublishError(grpc_error* error) {
   stream_->on_next = nullptr;
   GRPC_ERROR_UNREF(stream_->byte_stream_error);
   stream_->byte_stream_error = GRPC_ERROR_REF(error);
-  grpc_chttp2_cancel_stream(transport_, stream_, GRPC_ERROR_REF(error));
+  grpc_chttp2_cancel_stream(transport_, stream_, GRPC_ERROR_REF(error), GRPC_ERROR_CREATE_FROM_STATIC_STRING("PublishError"));
 }
 
 grpc_error* Chttp2IncomingByteStream::Push(const grpc_slice& slice,
@@ -3196,7 +3209,8 @@ static void destructive_reclaimer_locked(void* arg, grpc_error* error) {
         t, s,
         grpc_error_set_int(GRPC_ERROR_CREATE_FROM_STATIC_STRING("Buffers full"),
                            GRPC_ERROR_INT_HTTP2_ERROR,
-                           GRPC_HTTP2_ENHANCE_YOUR_CALM));
+                           GRPC_HTTP2_ENHANCE_YOUR_CALM),
+	GRPC_ERROR_CREATE_FROM_STATIC_STRING("GRPC_HTTP2_ENHANCE_YOUR_CALM"));
     if (n > 1) {
       // Since we cancel one stream per destructive reclamation, if
       //   there are more streams left, we can immediately post a new

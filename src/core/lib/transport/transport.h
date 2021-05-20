@@ -298,6 +298,7 @@ struct grpc_transport_stream_op_batch_payload {
     /** Should be enqueued when one message is ready to be processed. */
     grpc_closure* recv_message_ready = nullptr;
     bool* recv_message_oom_killed = nullptr;
+    grpc_error** read_closed_error = nullptr;
   } recv_message;
 
   struct {
