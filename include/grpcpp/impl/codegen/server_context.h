@@ -229,7 +229,21 @@ class ServerContextBase {
     return *client_metadata_.map();
   }
 
-  bool IsReadOOMKilled() const;
+  enum ReadClosedError {
+    NO_ERROR = 0,
+    GOAWAY_STREAM_WAITING_FOR_CONCURRENCY = 1,
+    STREAM_IDS_EXHAUSTED = 2,
+    ERROR_SEEN_WHILE_FETCHING_SEND = 3,
+    ERROR_SEEN_WHILE_COMPLETE_FETCH_LOCKED = 4,
+    EXPLICIT_CANCEL_STREAM = 5,
+    CLIENT_CLOSED_WITH_ERROR = 6,
+    CANCEL_STREAM_CB = 7,
+    RESET_BYTE_STREAM = 8,
+    INCOMING_BYTE_STREAM_PUBLISH_ERROR = 9,
+    OOM = 10
+  };
+
+  int getReadClosedError() const;
 
   /// Return the compression algorithm to be used by the server call.
   grpc_compression_level compression_level() const {
@@ -560,7 +574,7 @@ class ServerContext : public ServerContextBase {
   using ServerContextBase::compression_level_set;
   using ServerContextBase::deadline;
   using ServerContextBase::IsCancelled;
-  using ServerContextBase::IsReadOOMKilled;
+  using ServerContextBase::getReadClosedError;
   using ServerContextBase::peer;
   using ServerContextBase::raw_deadline;
   using ServerContextBase::set_compression_algorithm;
@@ -604,7 +618,7 @@ class CallbackServerContext : public ServerContextBase {
   using ServerContextBase::context_allocator;
   using ServerContextBase::deadline;
   using ServerContextBase::IsCancelled;
-  using ServerContextBase::IsReadOOMKilled;
+  using ServerContextBase::getReadClosedError;
   using ServerContextBase::peer;
   using ServerContextBase::raw_deadline;
   using ServerContextBase::set_compression_algorithm;

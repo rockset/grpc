@@ -556,7 +556,7 @@ struct grpc_chttp2_stream {
   bool* trailing_metadata_available = nullptr;
   grpc_core::OrphanablePtr<grpc_core::ByteStream>* recv_message;
   grpc_closure* recv_message_ready = nullptr;
-  bool* recv_message_oom_killed = nullptr;
+  int* recv_message_read_closed_error = nullptr;
   grpc_metadata_batch* recv_trailing_metadata;
   grpc_closure* recv_trailing_metadata_finished = nullptr;
 
@@ -862,7 +862,7 @@ void grpc_chttp2_mark_stream_writable(grpc_chttp2_transport* t,
                                       grpc_chttp2_stream* s);
 
 void grpc_chttp2_cancel_stream(grpc_chttp2_transport* t, grpc_chttp2_stream* s,
-                               grpc_error* due_to_error);
+                               grpc_error* due_to_error, int read_closed_error = 0);
 
 void grpc_chttp2_maybe_complete_recv_initial_metadata(grpc_chttp2_transport* t,
                                                       grpc_chttp2_stream* s);
