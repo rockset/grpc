@@ -234,7 +234,6 @@ struct grpc_call {
   bool sent_server_trailing_metadata = false;
   gpr_atm cancelled_with_error = 0;
   bool recv_message_oom_killed = false;
-  grpc_error* read_closed_error = nullptr;
 
   grpc_closure release_call;
 
@@ -729,10 +728,6 @@ void grpc_call_cancel_internal(grpc_call* call) {
 
 bool grpc_call_recv_message_oom_killed(grpc_call* call) {
   return call->recv_message_oom_killed;
-}
-
-const char* grpc_call_read_closed_error(grpc_call* call) {
-  return grpc_error_string(call->read_closed_error);
 }
 
 static grpc_error* error_from_status(grpc_status_code status,
@@ -1861,8 +1856,6 @@ static grpc_call_error call_start_batch(grpc_call* call, const grpc_op* ops,
             &call->receiving_stream_ready;
         stream_op_payload->recv_message.recv_message_oom_killed =
             &call->recv_message_oom_killed;
-        stream_op_payload->recv_message.read_closed_error =
-            &call->read_closed_error;
         ++num_recv_ops;
         break;
       }

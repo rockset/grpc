@@ -88,7 +88,6 @@ grpc_call_error grpc_call_start_batch_and_execute(grpc_call* call,
 void grpc_call_cancel_internal(grpc_call* call);
 
 bool grpc_call_recv_message_oom_killed(grpc_call* call);
-const char* grpc_call_read_closed_error(grpc_call* call);
 
 /* Given the top call_element, get the call object. */
 grpc_call* grpc_call_from_top_element(grpc_call_element* surface_element);
